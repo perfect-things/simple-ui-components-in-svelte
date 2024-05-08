@@ -6,13 +6,19 @@ import cleanCSS from 'gulp-clean-css';
 import concat from 'gulp-concat';
 import gulp from 'gulp';
 import gulpEslint from 'gulp-eslint-new';
-// import gulpStylelint from '@ronilaukkarinen/gulp-stylelint';
-import gulpStylelint from 'gulp-stylelint-esm';
 import inject from 'gulp-inject-string';
 import livereload from 'gulp-livereload';
 import NodeResolve from '@esbuild-plugins/node-resolve';
 import server from 'gulp-webserver';
 import sveltePlugin from 'esbuild-svelte';
+// import gulpStylelint from '@ronilaukkarinen/gulp-stylelint';
+import gulpStylelint from 'gulp-stylelint-esm';
+
+import resolve from '@rollup/plugin-node-resolve';
+import svelte from 'rollup-plugin-svelte';
+import terser from '@rollup/plugin-terser';
+import commonjs from '@rollup/plugin-commonjs';
+import rollup from 'gulp-rollup-plugin';
 
 
 const { series, parallel, src, dest, watch } = gulp;
@@ -97,7 +103,43 @@ export function stylelint () {
 }
 
 
+
 export function js () {
+	return src(PATHS.JS.INPUT, { sourcemaps: !isProd })
+		.pipe(rollup({
+			// onwarn: (err) => {
+			// 	if (/eval|A11y/.test(err)) return;
+			// 	console.error('\x07\nERROR: ' + err.message + '\n');
+			// },
+			plugins: [
+				commonjs(),
+				resolve({
+					browser: true,
+					extensions: ['.js', '.svelte'],
+					dedupe: ['svelte']
+				}),
+				svelte({
+					emitCss: false,
+					compilerOptions: {
+						dev: !isProd,
+						css: 'external',
+						legacy: {
+							componentApi: true,
+						}
+					}
+				}),
+				isProd && terser()
+			],
+		}, {
+			file: 'docs.js',
+			format: 'esm'
+		}))
+		.pipe(dest(PATHS.DIST, { sourcemaps: '.' }))
+		.pipe(livereload());
+}
+
+
+export function js_esbuild () {
 	const cfg = {
 		outfile: 'docs.js',
 		mainFields: ['svelte', 'browser', 'module', 'main'],
